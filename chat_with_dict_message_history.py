@@ -1,3 +1,5 @@
+import uuid
+
 import chainlit as cl
 from langchain_openai import AzureChatOpenAI
 from langchain_openai import AzureChatOpenAI
@@ -6,6 +8,7 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.schema import StrOutputParser
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.runnables.base import RunnableSequence
 from langchain.schema.runnable.config import RunnableConfig
 from dotenv import load_dotenv
 
@@ -13,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path='.venv/.env')
 
 
-store = {}
+store: dict = {}
 
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
@@ -25,12 +28,12 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
 @cl.on_chat_start
 async def on_start():
     # Set 'AZURE_OPENAI_API_KEY' and 'AZURE_OPENAI_ENDPOINT' in .env
-    llm = AzureChatOpenAI(
+    llm: AzureChatOpenAI = AzureChatOpenAI(
         azure_deployment="gpt-4-1106",
         openai_api_version="2023-09-01-preview",
     )
     # Change System Prompt here
-    prompt = ChatPromptTemplate.from_messages(
+    prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages(
         [
             ("system", 'You are a helpful assistant.'),
             MessagesPlaceholder(variable_name="history"),
@@ -38,27 +41,27 @@ async def on_start():
         ]
     )
     # Create chain of Prompt -> LLM -> Parse Output
-    chain = prompt | llm | StrOutputParser()
+    chain: RunnableSequence = prompt | llm | StrOutputParser()
     # Add message history to chain
     # Currently it uses a dictionary, but can be swapped to Redis or any other database
-    runnable = RunnableWithMessageHistory(
+    runnable: RunnableWithMessageHistory = RunnableWithMessageHistory(
         chain,
         get_session_history,
         input_messages_key="question",
         history_messages_key="history",
     )
-    # run the below to get a graph representation of the runnable
+    # Run the below to get a graph representation of the runnable
     # runnable.get_graph().print_ascii()
     # Set the runnable for the session
     cl.user_session.set("runnable", runnable)
 
 
 @cl.on_message
-async def on_message(message):
-    runnable = cl.user_session.get("runnable")
+async def on_message(message: cl.Message):
+    runnable: RunnableWithMessageHistory = cl.user_session.get("runnable")
     # Chainlit generates uuid per user session and this can be retrieved using the below command
-    user_id = cl.user_session.get("id")
-    # Below block of code is to stream responses
+    user_id: uuid.uuid4 = cl.user_session.get("id")
+    # Below block of code is to call and stream responses
     msg: cl.Message = cl.Message(content="")
     async for chunk in runnable.astream(
             {"question": message.content},
