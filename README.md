@@ -1,6 +1,10 @@
 # Chainlit Cookbook
 
-## Install Requirements
+## Version Requirements
+- python=3.11
+- pip=23.3.2
+
+## Install Package Requirements
 
 ```bash
 pip install -r requirements.txt
